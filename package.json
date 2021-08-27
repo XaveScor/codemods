@@ -1,0 +1,16 @@
+{
+  "name": "codemods",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "jscodeshift": "^0.13.0",
+    "jest": "^27.1.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
