@@ -8,4 +8,5 @@ defineTest(__dirname, 'changeImports', null, 'changeImports/oldImportsOnly');
 defineTest(__dirname, 'changeImports', null, 'changeImports/multipleFromImports');
 defineTest(__dirname, 'changeImports', null, 'changeImports/mixImports');
 defineTest(__dirname, 'changeImports', null, 'changeImports/fromLibNotExists');
+defineTest(__dirname, 'changeImports', null, 'changeImports/saveComment');
 defineTest(__dirname, 'changeImports', null, 'changeImports');

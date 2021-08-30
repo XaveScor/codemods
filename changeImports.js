@@ -49,6 +49,18 @@ function getImportSpecifierName(specifier) {
     return specifier.imported.name;
 }
 
+// TODO rewrite this shit
+function replace(target, data) {
+    let comments = [];
+    target.forEach(path => {
+        comments = path.node.comments;
+    });
+    target.replaceWith(data);
+    target.forEach(path => {
+        path.node.comments = comments;
+    })
+}
+
 module.exports.parser = 'flow';
 
 module.exports = function(fileInfo, api, options) {
@@ -75,7 +87,8 @@ module.exports = function(fileInfo, api, options) {
                 );
             }
         } else {
-            firstToItem.replaceWith(
+            replace(
+                firstToItem,
                 j.importDeclaration(totalToLibPieces, j.literal(toLib)),
             );
         }
@@ -83,7 +96,8 @@ module.exports = function(fileInfo, api, options) {
         if (keepPieces.length === 0) {
             firstFromItem.remove();
         } else {
-            firstFromItem.replaceWith(
+            replace(
+                firstFromItem,
                 j.importDeclaration(keepPieces, j.literal(fromLib)),
             );
         }
