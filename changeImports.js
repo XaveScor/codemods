@@ -32,9 +32,13 @@ module.exports = function(fileInfo, api, options) {
         }
 
         const firstFromItem = j(fromLibItems.at(0).get());
-        firstFromItem.replaceWith(
-            j.importDeclaration(keepSpecifiers, j.literal(fromLib))
-        );
+        if (keepSpecifiers.length === 0) {
+            firstFromItem.remove();
+        } else {
+            firstFromItem.replaceWith(
+                j.importDeclaration(keepSpecifiers, j.literal(fromLib))
+            );
+        }
 
         firstFromItem.insertBefore(
             j.importDeclaration(toLibSpecifiers, j.literal(toLib))
