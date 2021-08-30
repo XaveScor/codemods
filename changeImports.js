@@ -5,6 +5,49 @@ const allowedItems = new Set([
     'map'
 ]);
 
+function findImportsFrom(root, j, libName) {
+    return root.find(j.ImportDeclaration)
+        .filter(path => path.value.source.value === libName);
+}
+
+function removeAllAndGetFirst(root, j, libName) {
+    const libItems = findImportsFrom(root, j, libName);
+    
+    if (libItems.size() === 0) {
+        return null;
+    }
+
+    for (let i = 1; i < libItems.size(); ++i) {
+        j(libItems.at(i).get()).remove();
+    }
+
+    return j(libItems.at(0).get())
+}
+
+function getAllImportPieces(root, j, libName) {
+    const libItems = findImportsFrom(root, j, libName);
+
+    return libItems.nodes().flatMap(path => path.specifiers);
+}
+
+function unionPieces(a, b) {
+    const included = new Set(a.map(aEl => getImportSpecifierName(aEl)));
+
+    const res = [...a];
+    for (const element of b) {
+        const name = getImportSpecifierName(element);
+        if (!included.has(name)) {
+            res.push(element);
+            included.add(name);
+        }
+    }
+
+    return res;
+}
+
+function getImportSpecifierName(specifier) {
+    return specifier.imported.name;
+}
 
 module.exports.parser = 'flow';
 
@@ -13,40 +56,39 @@ module.exports = function(fileInfo, api, options) {
 
     const root = j(fileInfo.source);
 
-    const fromLibItems = root.find(j.ImportDeclaration)
-        .filter(path => path.value.source.value === fromLib);
-    if (fromLibItems.size() > 0) {
-        const fromSpecifiers = fromLibItems
-            .nodes()
-            .flatMap(path => path.specifiers);
+    const fromLibPieces = getAllImportPieces(root, j, fromLib);
+    if (fromLibPieces.length > 0) {
+        const toLibPieces = getAllImportPieces(root, j, toLib);
 
-        const toLibSpecifiers = fromSpecifiers
-            .filter(specifier => allowedItems.has(specifier.imported.name));
-        const keepSpecifiers = fromSpecifiers
-            .filter(specifier => !allowedItems.has(specifier.imported.name));
+        const allowedPieces = fromLibPieces.filter(x => allowedItems.has(getImportSpecifierName(x)));
+        const keepPieces = fromLibPieces.filter(x => !allowedItems.has(getImportSpecifierName(x)));
 
-        // Remove all old lib imports except first
-        // First piece is a place for possible replacement for not allowed items
-        for (let i = 1; i < fromLibItems.size(); ++i) {
-            j(fromLibItems.at(i).get()).remove();
-        }
+        const totalToLibPieces = unionPieces(allowedPieces, toLibPieces);
 
-        const firstFromItem = j(fromLibItems.at(0).get());
+        const firstFromItem = removeAllAndGetFirst(root, j, fromLib);
+        const firstToItem = removeAllAndGetFirst(root, j, toLib);
 
-        if (toLibSpecifiers.length > 0) {
-            firstFromItem.insertBefore(
-                j.importDeclaration(toLibSpecifiers, j.literal(toLib))
+        if (firstToItem === null) {
+            if (totalToLibPieces.length > 0) {
+                firstFromItem.insertBefore(
+                    j.importDeclaration(totalToLibPieces, j.literal(toLib))
+                );
+            }
+        } else {
+            firstToItem.replaceWith(
+                j.importDeclaration(totalToLibPieces, j.literal(toLib)),
             );
         }
 
-        if (keepSpecifiers.length === 0) {
+        if (keepPieces.length === 0) {
             firstFromItem.remove();
         } else {
             firstFromItem.replaceWith(
-                j.importDeclaration(keepSpecifiers, j.literal(fromLib))
+                j.importDeclaration(keepPieces, j.literal(fromLib)),
             );
         }
     }
+
     return root.toSource({
         objectCurlySpacing: false,
         quote: 'single'
