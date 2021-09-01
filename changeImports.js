@@ -69,38 +69,40 @@ module.exports = function(fileInfo, api, options) {
     const root = j(fileInfo.source);
 
     const fromLibPieces = getAllImportPieces(root, j, fromLib);
-    if (fromLibPieces.length > 0) {
-        const toLibPieces = getAllImportPieces(root, j, toLib);
+    if (fromLibPieces.length === 0) {
+        return fileInfo.source;
+    }
 
-        const allowedPieces = fromLibPieces.filter(x => allowedItems.has(getImportSpecifierName(x)));
-        const keepPieces = fromLibPieces.filter(x => !allowedItems.has(getImportSpecifierName(x)));
+    const toLibPieces = getAllImportPieces(root, j, toLib);
 
-        const totalToLibPieces = unionPieces(allowedPieces, toLibPieces);
+    const allowedPieces = fromLibPieces.filter(x => allowedItems.has(getImportSpecifierName(x)));
+    const keepPieces = fromLibPieces.filter(x => !allowedItems.has(getImportSpecifierName(x)));
 
-        const firstFromItem = removeAllAndGetFirst(root, j, fromLib);
-        const firstToItem = removeAllAndGetFirst(root, j, toLib);
+    const totalToLibPieces = unionPieces(allowedPieces, toLibPieces);
 
-        if (firstToItem === null) {
-            if (totalToLibPieces.length > 0) {
-                firstFromItem.insertBefore(
-                    j.importDeclaration(totalToLibPieces, j.literal(toLib))
-                );
-            }
-        } else {
-            replace(
-                firstToItem,
-                j.importDeclaration(totalToLibPieces, j.literal(toLib)),
+    const firstFromItem = removeAllAndGetFirst(root, j, fromLib);
+    const firstToItem = removeAllAndGetFirst(root, j, toLib);
+
+    if (firstToItem === null) {
+        if (totalToLibPieces.length > 0) {
+            firstFromItem.insertBefore(
+                j.importDeclaration(totalToLibPieces, j.literal(toLib))
             );
         }
+    } else {
+        replace(
+            firstToItem,
+            j.importDeclaration(totalToLibPieces, j.literal(toLib)),
+        );
+    }
 
-        if (keepPieces.length === 0) {
-            firstFromItem.remove();
-        } else {
-            replace(
-                firstFromItem,
-                j.importDeclaration(keepPieces, j.literal(fromLib)),
-            );
-        }
+    if (keepPieces.length === 0) {
+        firstFromItem.remove();
+    } else {
+        replace(
+            firstFromItem,
+            j.importDeclaration(keepPieces, j.literal(fromLib)),
+        );
     }
 
     return root.toSource({
