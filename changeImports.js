@@ -61,6 +61,20 @@ function replace(target, data) {
     })
 }
 
+function removeFlowAnnotation(j, root) {
+    const res = root.find(j.Comment).filter(path => path.value.value.trim() === "@flow");
+    const flowNodes = res.nodes();
+    res.remove();
+    return flowNodes;
+}
+
+function addFlowAnnotation(j, root) {
+    root
+        .find(j.Statement)
+        .at(0)
+        .insertBefore("// @flow");
+}
+
 module.exports.parser = 'flow';
 
 module.exports = function(fileInfo, api, options) {
@@ -72,6 +86,8 @@ module.exports = function(fileInfo, api, options) {
     if (fromLibPieces.length === 0) {
         return fileInfo.source;
     }
+
+    const flowNodes = removeFlowAnnotation(j, root);
 
     const toLibPieces = getAllImportPieces(root, j, toLib);
 
@@ -103,6 +119,10 @@ module.exports = function(fileInfo, api, options) {
             firstFromItem,
             j.importDeclaration(keepPieces, j.literal(fromLib)),
         );
+    }
+
+    if (flowNodes.length > 0) {
+        addFlowAnnotation(j, root);
     }
 
     return root.toSource({
