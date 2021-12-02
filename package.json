@@ -8,7 +8,7 @@
   },
   "devDependencies": {
     "jscodeshift": "^0.13.0",
-    "jest": "^27.1.0"
+    "jest": "^27.4.3"
   },
   "keywords": [],
   "author": "",
