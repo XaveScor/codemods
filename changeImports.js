@@ -1,5 +1,3 @@
-const { fromNodes } = require("jscodeshift/src/Collection");
-
 const fromLib = "lodash";
 const toLib = "ambar";
 const allowedItems = new Set(["reduce", "map"]);
@@ -7,18 +5,23 @@ const allowedItems = new Set(["reduce", "map"]);
 // import type {a} => import {type a}
 function moveTypeInsideBrackets(root, j, libName) {
   root
-    .find(j.ImportDeclaration, {importKind: 'type', source: {value: libName}})
-    .forEach(i => {
-      i.value.importKind = 'value';
+    .find(j.ImportDeclaration, {
+      importKind: "type",
+      source: { value: libName },
+    })
+    .forEach((i) => {
+      i.value.importKind = "value";
       for (const spec of i.value.specifiers) {
-        spec.importKind = 'type';
+        spec.importKind = "type";
       }
     });
 }
 
 function findImportsFrom(root, j, libName) {
-  return root
-    .find(j.ImportDeclaration, {importKind: 'value', source: {value: libName}});
+  return root.find(j.ImportDeclaration, {
+    importKind: "value",
+    source: { value: libName },
+  });
 }
 
 function removeAllAndGetFirst(root, j, libName) {
@@ -38,7 +41,10 @@ function removeAllAndGetFirst(root, j, libName) {
 function getAllImportPieces(root, j, libName) {
   const libItems = findImportsFrom(root, j, libName);
 
-  return libItems.nodes().flatMap((path) => path.specifiers);
+  const ret = libItems.nodes().flatMap((path) => path.specifiers);
+
+  // Если не создавать такую кривую копию, то type не попадает внутрь импорта почему-то
+  return ret.map((ret) => ({ ...ret }));
 }
 
 function unionPieces(a, b) {
@@ -72,20 +78,20 @@ function replace(target, data) {
   });
 }
 
-function removeFlowAnnotation(j, root) {
-  const res = root
-    .find(j.Comment)
-    .filter((path) => path.value.value.trim() === "@flow");
-  const flowNodes = res.nodes();
-  res.remove();
-  return flowNodes;
+function hasFlowAnnotation(j, root) {
+  return (
+    root
+      .find(j.Comment, (val) => val.value.trim())
+      .filter((path) => path.value.value.trim() === "@flow")
+      .nodes().length > 0
+  );
 }
 
 function addFlowAnnotation(j, root) {
   root.find(j.Statement).at(0).insertBefore("// @flow");
 }
 
-module.exports = function (fileInfo, api, options) {
+module.exports = function (fileInfo, api) {
   const j = api.jscodeshift;
 
   const root = j(fileInfo.source);
@@ -97,8 +103,7 @@ module.exports = function (fileInfo, api, options) {
     return fileInfo.source;
   }
 
-  const flowNodes = removeFlowAnnotation(j, root);
-
+  const flowAnnotation = hasFlowAnnotation(j, root);
   const toLibPieces = getAllImportPieces(root, j, toLib);
 
   const allowedPieces = fromLibPieces.filter((x) =>
@@ -132,7 +137,7 @@ module.exports = function (fileInfo, api, options) {
     replace(firstFromItem, j.importDeclaration(keepPieces, j.literal(fromLib)));
   }
 
-  if (flowNodes.length > 0) {
+  if (flowAnnotation) {
     addFlowAnnotation(j, root);
   }
 
