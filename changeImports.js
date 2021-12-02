@@ -1,11 +1,24 @@
+const { fromNodes } = require("jscodeshift/src/Collection");
+
 const fromLib = "lodash";
 const toLib = "ambar";
 const allowedItems = new Set(["reduce", "map"]);
 
+// import type {a} => import {type a}
+function moveTypeInsideBrackets(root, j, libName) {
+  root
+    .find(j.ImportDeclaration, {importKind: 'type', source: {value: libName}})
+    .forEach(i => {
+      i.value.importKind = 'value';
+      for (const spec of i.value.specifiers) {
+        spec.importKind = 'type';
+      }
+    });
+}
+
 function findImportsFrom(root, j, libName) {
   return root
-    .find(j.ImportDeclaration)
-    .filter((path) => path.value.source.value === libName);
+    .find(j.ImportDeclaration, {importKind: 'value', source: {value: libName}});
 }
 
 function removeAllAndGetFirst(root, j, libName) {
@@ -72,13 +85,13 @@ function addFlowAnnotation(j, root) {
   root.find(j.Statement).at(0).insertBefore("// @flow");
 }
 
-module.exports.parser = "flow";
-
 module.exports = function (fileInfo, api, options) {
   const j = api.jscodeshift;
 
   const root = j(fileInfo.source);
 
+  moveTypeInsideBrackets(root, j, fromLib);
+  moveTypeInsideBrackets(root, j, toLib);
   const fromLibPieces = getAllImportPieces(root, j, fromLib);
   if (fromLibPieces.length === 0) {
     return fileInfo.source;
@@ -128,3 +141,5 @@ module.exports = function (fileInfo, api, options) {
     quote: "single",
   });
 };
+
+module.exports.parser = "flow";

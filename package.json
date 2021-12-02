@@ -7,6 +7,7 @@
     "test": "jest"
   },
   "devDependencies": {
+    "@types/jscodeshift": "^0.11.3",
     "jest": "^27.4.3",
     "jscodeshift": "^0.13.0",
     "prettier": "^2.5.0",

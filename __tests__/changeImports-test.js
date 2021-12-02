@@ -20,3 +20,4 @@ defineTest(__dirname, "changeImports", null, "changeImports");
 // ------ FLOW ----------
 //
 defineTest(__dirname, "changeImports", null, "flow/saveFlowComment");
+defineTest(__dirname, "changeImports", null, "flow/simpleOutsideReplace");
