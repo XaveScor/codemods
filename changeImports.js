@@ -1,132 +1,130 @@
-const fromLib = 'lodash';
-const toLib = 'ambar';
-const allowedItems = new Set([
-    'reduce',
-    'map'
-]);
+const fromLib = "lodash";
+const toLib = "ambar";
+const allowedItems = new Set(["reduce", "map"]);
 
 function findImportsFrom(root, j, libName) {
-    return root.find(j.ImportDeclaration)
-        .filter(path => path.value.source.value === libName);
+  return root
+    .find(j.ImportDeclaration)
+    .filter((path) => path.value.source.value === libName);
 }
 
 function removeAllAndGetFirst(root, j, libName) {
-    const libItems = findImportsFrom(root, j, libName);
-    
-    if (libItems.size() === 0) {
-        return null;
-    }
+  const libItems = findImportsFrom(root, j, libName);
 
-    for (let i = 1; i < libItems.size(); ++i) {
-        j(libItems.at(i).get()).remove();
-    }
+  if (libItems.size() === 0) {
+    return null;
+  }
 
-    return j(libItems.at(0).get())
+  for (let i = 1; i < libItems.size(); ++i) {
+    j(libItems.at(i).get()).remove();
+  }
+
+  return j(libItems.at(0).get());
 }
 
 function getAllImportPieces(root, j, libName) {
-    const libItems = findImportsFrom(root, j, libName);
+  const libItems = findImportsFrom(root, j, libName);
 
-    return libItems.nodes().flatMap(path => path.specifiers);
+  return libItems.nodes().flatMap((path) => path.specifiers);
 }
 
 function unionPieces(a, b) {
-    const included = new Set(a.map(aEl => getImportSpecifierName(aEl)));
+  const included = new Set(a.map((aEl) => getImportSpecifierName(aEl)));
 
-    const res = [...a];
-    for (const element of b) {
-        const name = getImportSpecifierName(element);
-        if (!included.has(name)) {
-            res.push(element);
-            included.add(name);
-        }
+  const res = [...a];
+  for (const element of b) {
+    const name = getImportSpecifierName(element);
+    if (!included.has(name)) {
+      res.push(element);
+      included.add(name);
     }
+  }
 
-    return res;
+  return res;
 }
 
 function getImportSpecifierName(specifier) {
-    return specifier.imported.name;
+  return specifier.imported.name;
 }
 
 // TODO rewrite this shit
 function replace(target, data) {
-    let comments = [];
-    target.forEach(path => {
-        comments = path.node.comments;
-    });
-    target.replaceWith(data);
-    target.forEach(path => {
-        path.node.comments = comments;
-    })
+  let comments = [];
+  target.forEach((path) => {
+    comments = path.node.comments;
+  });
+  target.replaceWith(data);
+  target.forEach((path) => {
+    path.node.comments = comments;
+  });
 }
 
 function removeFlowAnnotation(j, root) {
-    const res = root.find(j.Comment).filter(path => path.value.value.trim() === "@flow");
-    const flowNodes = res.nodes();
-    res.remove();
-    return flowNodes;
+  const res = root
+    .find(j.Comment)
+    .filter((path) => path.value.value.trim() === "@flow");
+  const flowNodes = res.nodes();
+  res.remove();
+  return flowNodes;
 }
 
 function addFlowAnnotation(j, root) {
-    root
-        .find(j.Statement)
-        .at(0)
-        .insertBefore("// @flow");
+  root.find(j.Statement).at(0).insertBefore("// @flow");
 }
 
-module.exports.parser = 'flow';
+module.exports.parser = "flow";
 
-module.exports = function(fileInfo, api, options) {
-    const j = api.jscodeshift;
+module.exports = function (fileInfo, api, options) {
+  const j = api.jscodeshift;
 
-    const root = j(fileInfo.source);
+  const root = j(fileInfo.source);
 
-    const fromLibPieces = getAllImportPieces(root, j, fromLib);
-    if (fromLibPieces.length === 0) {
-        return fileInfo.source;
+  const fromLibPieces = getAllImportPieces(root, j, fromLib);
+  if (fromLibPieces.length === 0) {
+    return fileInfo.source;
+  }
+
+  const flowNodes = removeFlowAnnotation(j, root);
+
+  const toLibPieces = getAllImportPieces(root, j, toLib);
+
+  const allowedPieces = fromLibPieces.filter((x) =>
+    allowedItems.has(getImportSpecifierName(x))
+  );
+  const keepPieces = fromLibPieces.filter(
+    (x) => !allowedItems.has(getImportSpecifierName(x))
+  );
+
+  const totalToLibPieces = unionPieces(allowedPieces, toLibPieces);
+
+  const firstFromItem = removeAllAndGetFirst(root, j, fromLib);
+  const firstToItem = removeAllAndGetFirst(root, j, toLib);
+
+  if (firstToItem === null) {
+    if (totalToLibPieces.length > 0) {
+      firstFromItem.insertBefore(
+        j.importDeclaration(totalToLibPieces, j.literal(toLib))
+      );
     }
+  } else {
+    replace(
+      firstToItem,
+      j.importDeclaration(totalToLibPieces, j.literal(toLib))
+    );
+  }
 
-    const flowNodes = removeFlowAnnotation(j, root);
+  if (keepPieces.length === 0) {
+    firstFromItem.remove();
+  } else {
+    replace(firstFromItem, j.importDeclaration(keepPieces, j.literal(fromLib)));
+  }
 
-    const toLibPieces = getAllImportPieces(root, j, toLib);
+  if (flowNodes.length > 0) {
+    addFlowAnnotation(j, root);
+  }
 
-    const allowedPieces = fromLibPieces.filter(x => allowedItems.has(getImportSpecifierName(x)));
-    const keepPieces = fromLibPieces.filter(x => !allowedItems.has(getImportSpecifierName(x)));
-
-    const totalToLibPieces = unionPieces(allowedPieces, toLibPieces);
-
-    const firstFromItem = removeAllAndGetFirst(root, j, fromLib);
-    const firstToItem = removeAllAndGetFirst(root, j, toLib);
-
-    if (firstToItem === null) {
-        if (totalToLibPieces.length > 0) {
-            firstFromItem.insertBefore(
-                j.importDeclaration(totalToLibPieces, j.literal(toLib))
-            );
-        }
-    } else {
-        replace(
-            firstToItem,
-            j.importDeclaration(totalToLibPieces, j.literal(toLib)),
-        );
-    }
-
-    if (keepPieces.length === 0) {
-        firstFromItem.remove();
-    } else {
-        replace(
-            firstFromItem,
-            j.importDeclaration(keepPieces, j.literal(fromLib)),
-        );
-    }
-
-    if (flowNodes.length > 0) {
-        addFlowAnnotation(j, root);
-    }
-
-    return root.toSource({
-        objectCurlySpacing: false,
-        quote: 'single'
-    });
-  };
+  return root.toSource({
+    objectCurlySpacing: false,
+    quote: "single",
+  });
+};
