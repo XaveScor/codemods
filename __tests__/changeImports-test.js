@@ -21,3 +21,4 @@ defineTest(__dirname, "changeImports", null, "changeImports");
 defineTest(__dirname, "changeImports", null, "flow/saveFlowComment");
 defineTest(__dirname, "changeImports", null, "flow/simpleOutsideReplace");
 defineTest(__dirname, "changeImports", null, "flow/simpleInsideReplace");
+defineTest(__dirname, "changeImports", null, "flow/onlyOneFlowAnnotation");

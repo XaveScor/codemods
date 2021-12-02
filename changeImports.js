@@ -1,3 +1,4 @@
+const { file } = require("jscodeshift");
 const fromLib = "lodash";
 const toLib = "ambar";
 const allowedItems = new Set(["reduce", "map"]);
@@ -78,23 +79,24 @@ function replace(target, data) {
   });
 }
 
-function hasFlowAnnotation(j, root) {
-  return (
-    root
-      .find(j.Comment, (val) => val.value.trim())
-      .filter((path) => path.value.value.trim() === "@flow")
-      .nodes().length > 0
-  );
-}
+const FlowComment = "// @flow";
 
 function addFlowAnnotation(j, root) {
-  root.find(j.Statement).at(0).insertBefore("// @flow");
+  root.find(j.Statement).at(0).insertBefore(FlowComment);
 }
 
 module.exports = function (fileInfo, api) {
   const j = api.jscodeshift;
 
-  const root = j(fileInfo.source);
+  // Небольшой хак, который основан на упрощении, что у нас в проектах все аннотации flow
+  // находятся на первой строке и используют однострочный комментарий
+  let source = fileInfo.source.trim();
+  const flowAnnotationPosition = source.indexOf(FlowComment);
+  if (flowAnnotationPosition !== -1) {
+    source = source.slice(flowAnnotationPosition + FlowComment.length);
+  }
+
+  const root = j(source);
 
   moveTypeInsideBrackets(root, j, fromLib);
   moveTypeInsideBrackets(root, j, toLib);
@@ -103,7 +105,6 @@ module.exports = function (fileInfo, api) {
     return fileInfo.source;
   }
 
-  const flowAnnotation = hasFlowAnnotation(j, root);
   const toLibPieces = getAllImportPieces(root, j, toLib);
 
   const allowedPieces = fromLibPieces.filter((x) =>
@@ -137,7 +138,7 @@ module.exports = function (fileInfo, api) {
     replace(firstFromItem, j.importDeclaration(keepPieces, j.literal(fromLib)));
   }
 
-  if (flowAnnotation) {
+  if (flowAnnotationPosition > -1) {
     addFlowAnnotation(j, root);
   }
 
