@@ -1,7 +1,6 @@
-const { file } = require("jscodeshift");
 const fromLib = "lodash";
 const toLib = "ambar";
-const allowedItems = new Set(["reduce", "map"]);
+const allowedItems = new Set(["reduce", "map", "default"]);
 
 // import type {a} => import {type a}
 function moveTypeInsideBrackets(root, j, libName) {
@@ -64,7 +63,14 @@ function unionPieces(a, b) {
 }
 
 function getImportSpecifierName(specifier) {
-  return specifier.imported.name;
+  switch (specifier.type) {
+    case "ImportDefaultSpecifier":
+      return "default";
+    case "ImportSpecifier":
+      return specifier.imported.name;
+    default:
+      return null;
+  }
 }
 
 // TODO rewrite this shit

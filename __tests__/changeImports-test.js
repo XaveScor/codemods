@@ -14,7 +14,7 @@ defineTest(__dirname, "changeImports", null, "changeImports/mixImports");
 defineTest(__dirname, "changeImports", null, "changeImports/fromLibNotExists");
 defineTest(__dirname, "changeImports", null, "changeImports/saveComment");
 defineTest(__dirname, "changeImports", null, "changeImports/renameImport");
-defineTest(__dirname, "changeImports", null, "changeImports");
+defineTest(__dirname, "changeImports", null, "changeImports/default");
 //
 // ------ FLOW ----------
 //
